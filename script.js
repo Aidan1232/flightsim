@@ -1,3 +1,4 @@
+console.clear();
 let rain; // Declare the variable globally
 let weatherState = "clear"; // or "rain", "storm", etc.
 let weatherTimer = null;
@@ -415,7 +416,6 @@ function randomizeWeather() {
     } while (next === weatherState);
   
     weatherState = next;
-    console.log("🌤️ Weather changed to:", weatherState);
   
     if (weatherState === "rain" || weatherState === "storm") {
       rain.visible = true;
@@ -604,7 +604,6 @@ function updateFeathers(feathers) {
 }
 
 //BARREL ROLL BABYYYY
-
 let rolling = false;
 
 function barrelRoll(direction) {
@@ -624,6 +623,52 @@ function barrelRoll(direction) {
           rolling = false;
         })
         .start();
+}
+
+
+//wingtip smoke??
+const smokeParticles = new THREE.Group(); // ✅ Holds multiple smoke elements
+scene.add(smokeParticles);
+
+function createSmoke(position) {
+    const geometry = new THREE.SphereGeometry(0.2, 8, 8); // ✅ Small sphere as a particle
+    const material = new THREE.MeshBasicMaterial({
+        color: 0x555555,
+        transparent: true,
+        opacity: 0.8,
+    });
+
+    const smoke = new THREE.Mesh(geometry, material);
+    smoke.position.copy(position);
+    smokeParticles.add(smoke);
+
+    new TWEEN.Tween(smoke.material)
+        .to({ opacity: 0 }, 5000) // ✅ Fade out naturally
+        .start();
+        
+}
+
+function updateSmoke() {
+    if (!rolling) return;
+    const wingtipLeft = new THREE.Vector3(-1.6, 0, 0);
+    const wingtipRight = new THREE.Vector3(1.6, 0, 0);
+
+    plane.localToWorld(wingtipLeft);
+    plane.localToWorld(wingtipRight);
+
+    createSmoke(wingtipLeft); // ✅ Now actually generates smoke at left wingtip
+    createSmoke(wingtipRight); // ✅ And at right wingtip
+
+    // ✅ Fade-out effect instead of deletion
+    smokeParticles.children.forEach((smoke, index) => {
+        const wingtipLeft = new THREE.Vector3(-1.6, 0, 0);
+        const wingtipRight = new THREE.Vector3(1.6, 0, 0);
+
+        plane.localToWorld(wingtipLeft);
+        plane.localToWorld(wingtipRight);
+
+        smoke.position.lerp(index % 2 === 0 ? wingtipLeft : wingtipRight, 0.001);
+    });
 }
 
 function animate() {
@@ -921,6 +966,8 @@ function animate() {
     animateBirds();
     updateAIPlanes();
     cleanupAIPlanes(planePos2D);
+    updateSmoke(); 
+
     
     TWEEN.update();
 
