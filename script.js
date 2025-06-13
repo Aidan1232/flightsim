@@ -734,12 +734,8 @@ function animate() {
       document.addEventListener("keyup", (event) => {
           keysHeld[event.code] = false;
       });
-
+      
     };
-
-
-    if (speed < 0.1) pitchGroup.rotation.x -= 0.005;
-    else if (speed < 0.25) pitchGroup.rotation.x -= (0.25 - speed) * 0.04;
 
     if (controlsEnabled && !gameOver && !rolling) {
         const targetRoll = keys["ArrowLeft"] ? 0.4 : keys["ArrowRight"] ? -0.4 : 0;
@@ -820,6 +816,16 @@ function animate() {
           spawnSparks(yawGroup.position);
           break;
         }
+      }
+    }
+
+    if (!gameOver) {
+      if (speed < 0.15) {
+        yawGroup.position.y -= 0.2;
+        pitchGroup.rotation.x -= 0.005;
+      };
+      if (speed >= 50) {
+        pitchGroup.rotation.x *= 0.98;
       }
     }
 
@@ -906,7 +912,8 @@ function animate() {
     const currentPosition = new THREE.Vector3();
     yawGroup.getWorldPosition(currentPosition);
     const kmh = (speed * 60 * 60 * 3).toFixed(1);
-    hudSpeed.textContent = `Speed: ${kmh} km/h`;
+    hudSpeed.textContent = `Speed: ${Math.round(kmh / 10)} km/h`;
+    document.getElementById("speed").style.color = speed > 4600 ? "red" : "white";
     lastPosition.copy(currentPosition);
   
     const planePos = new THREE.Vector3();
