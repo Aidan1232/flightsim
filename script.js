@@ -671,6 +671,7 @@ function updateSmoke() {
     });
 }
 
+
 function animate() {
     if (gameOver) return;
     requestAnimationFrame(animate);
@@ -918,13 +919,11 @@ function animate() {
   
     const planePos = new THREE.Vector3();
     plane.getWorldPosition(planePos);
-    const camOffset = new THREE.Vector3(0, 2, 6).applyQuaternion(worldQuat);
-    camera.position.copy(planePos.clone().add(camOffset));
-  
-    const up = new THREE.Vector3(0, 1, 0).applyAxisAngle(new THREE.Vector3(0, 0, 1), pitchGroup.rotation.z);
-    camera.up.copy(up);
-    camera.lookAt(planePos.clone().add(new THREE.Vector3(0, 0, -10).applyQuaternion(worldQuat)));
-  
+
+    plane.add(camera);
+    camera.position.set(0, 2, -6);
+    camera.rotation.y = Math.PI; // ✅ Rotates camera 180° to face forward
+
     propeller.rotation.z += speed * 2;
 
     if (rain) {
@@ -975,14 +974,12 @@ function animate() {
     cleanupAIPlanes(planePos2D);
     updateSmoke(); 
 
-    
     TWEEN.update();
 
     hudxyz.textContent = `X: ${Math.round(planePos.x)} Y: ${Math.round(planePos.y)} Z: ${Math.round(planePos.z)}`;     
     renderer.render(scene, camera);
 }
   
-
 function startGame() {
     if (gameStarted) return;
     gameStarted = true;
