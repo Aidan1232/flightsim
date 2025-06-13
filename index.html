@@ -110,9 +110,9 @@
     <div id="speed">Speed: 0 km/h</div>
     <div id="xyz">X: 0 Y: 0 Z: 0</div>
   </div>
-  <div class="Hud">THIS IS A DEMO NOT THE FINAL PRODUCT</div>
+  <div class="Hud">THIS IS IN BETA THIS MIGHT NOT BE THE FINAL PRODUCT</div>
   <div style="position:fixed;bottom:1px;right:5px;color:darkgray;font-size:12px;z-index:1000;">
-    Version: 1.4 Speedy update
+    Version: 1.5 Logical update
   </div>
   <div id="hudMessage">weather</div>
   <div id="controls" style="position:absolute;bottom:20px;right:20px;background:rgba(0,0,0,0.5);padding:10px 15px;border-radius:8px;font-family:sans-serif;color:white;font-size:14px;line-height:1.5;pointer-events:none;user-select:none;">
@@ -122,10 +122,14 @@
     <li>S to decrease speed</li>
     <br>
     <p>Directional controls</p>
-    <li>Arrow left to roll left</li>
-    <li>Arrow right to roll right</li>
-    <li>Arrow up to pitch up</li>
-    <li>Arrow down to pitch down</li>
+    <li>Arrow left to bank left</li>
+    <li>Arrow right to bank right</li>
+    <li>Arrow up to pitch down</li>
+    <li>Arrow down to pitch up</li>
+    <br>
+    <p>Roll controls</p>
+    <li>Double press left to roll left</li>
+    <li>Double press right to roll right</li>
   </div>
   <div id="start-screen" style="position: absolute;top: 0; left: 0; right: 0; bottom: 0;background: rgba(0,0,0,0.85);color: white;font-family: sans-serif;display:flex;flex-direction: column;align-items: center;justify-content: center;font-size: 24px;z-index: 10;">
     <button id="startButton" onclick="startGame();">Press to start flight</button>

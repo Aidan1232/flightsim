@@ -764,11 +764,11 @@ function animate() {
           chunk.userData.gridZ = newGridZ;
           chunk.position.set(newGridX * chunkSize, 0, newGridZ * chunkSize);
 
-          //rarely spawn birds (50% chance as of the comment below)
+          //rarely spawn birds (60% chance as of the comment below)
           if (!chunk.userData.birds) chunk.userData.birds = [];
-          if (Math.random() < 0.5) { // 50% chance to spawn birds
-            const bx = chunk.position.x + Math.random() * chunkSize - chunkSize / 2;
-            const bz = chunk.position.z + Math.random() * chunkSize - chunkSize / 2;
+          if (Math.random() < 0.6) { // 60% chance to spawn birds
+            const bx = chunk.position.x + Math.random() * chunkSize - chunkSize / 8;
+            const bz = chunk.position.z + Math.random() * chunkSize - chunkSize / 8;
             const by = Math.random() * 30 + 10; // Keep them flying above ground
 
             const bird = new Bird(bx, by, bz);
