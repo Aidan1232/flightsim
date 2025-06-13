@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Plane Game</title>
+  <style>
+    body { 
+      margin: 0; 
+      overflow: hidden; 
+    }
+    canvas { 
+      display: block; 
+    }
+    #game-over {
+        position: fixed;
+        top: -100%;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.85);
+        color: white;
+        padding: 2em 3em;
+        border-radius: 1em;
+        text-align: center;
+        font-size: 2rem;
+        z-index: 999;
+        transition: top 1s ease-in-out;
+    }
+    #game-over.show {
+        top: 15%;
+    }
+    #retry-button {
+        margin-top: 1em;
+        padding: 0.5em 1.2em;
+        font-size: 1.2rem;
+        background-color: #ff5555;
+        color: white;
+        border: none;
+        border-radius: 0.5em;
+        cursor: pointer;
+    }
+    #hudMessage {
+        position: absolute;
+        top: 10px; /* Adjust for spacing */
+        right: -10%;
+        transform: translateX(-50%);
+        font-size: 24px;
+        color: white;
+        font-family: Arial, sans-serif; /* Match your HUD font */
+        background: rgba(0, 0, 0, 0.6);
+        padding: 8px 16px;
+        border-radius: 8px;
+        text-align: center;
+        display: none;
+    }
+    .Hud {
+        position: absolute;
+        top: 10px; /* Adjust for spacing */
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 24px;
+        color: white;
+        font-family: Arial, sans-serif; /* Match your HUD font */
+        background: rgba(0, 0, 0, 0.6);
+        padding: 8px 16px;
+        border-radius: 8px;
+        text-align: center;
+        z-index: 1000;
+    }
+    #startButton {
+        font-size: 20px;
+        padding: 10px 20px;
+        border: none;
+        background: #3366ff;
+        color: white;
+        cursor: pointer;
+        margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div id="hud" style="position:absolute;top:20px;left:20px;background:rgba(0,0,0,0.5);padding:10px 15px;border-radius:8px;font-family:sans-serif;color:white;font-size:14px;line-height:1.5;pointer-events:none;user-select:none;">
+    <div id="altitude">Altitude: 0m</div>
+    <div id="speed">Speed: 0 km/h</div>
+    <div id="xyz">X: 0 Y: 0 Z: 0</div>
+  </div>
+  <div class="Hud">THIS IS A DEMO NOT THE FINAL PRODUCT</div>
+  <div id="hudMessage">weather</div>
+  <div id="controls" style="position:absolute;bottom:20px;right:20px;background:rgba(0,0,0,0.5);padding:10px 15px;border-radius:8px;font-family:sans-serif;color:white;font-size:14px;line-height:1.5;pointer-events:none;user-select:none;">
+    <h1>Controls</h1>
+    <p>Speed controls</p>
+    <li>W to increase speed</li>
+    <li>S to decrease speed</li>
+    <br>
+    <p>Directional controls</p>
+    <li>Arrow left to roll left</li>
+    <li>Arrow right to roll right</li>
+    <li>Arrow up to pitch up</li>
+    <li>Arrow down to pitch down</li>
+  </div>
+  <div id="start-screen" style="position: absolute;top: 0; left: 0; right: 0; bottom: 0;background: rgba(0,0,0,0.85);color: white;font-family: sans-serif;display:flex;flex-direction: column;align-items: center;justify-content: center;font-size: 24px;z-index: 10;">
+    <button id="startButton" onclick="startGame();">Press to start flight</button>
+  </div>
+  <div id="game-over" style="display: none;">
+    <h1>💥 Game Over</h1>
+    <button id="retry-button" onclick="window.location.reload();">Retry</button>
+  </div>  
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+  <script src="/script.js"></script>
+</body>
+</html>
