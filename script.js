@@ -23,7 +23,7 @@ const rollThreshold = 300; // ✅ Time limit for double press
 const rollCooldown = 1000; // ✅ 1-second cooldown between rolls
 const keysHeld = {}; // ✅ Tracks whether a key is actively being pressed
 const throttleIncrement = 0.002;
-const deadZone = 0.1;
+const deadZone = 0.10;
 const stickSensitivity = 0.5;
 let lastRollTime = 0; // ✅ Track last roll time
 
