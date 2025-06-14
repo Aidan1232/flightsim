@@ -22,6 +22,9 @@ const lastKeyPressTime = { left: Date.now(), right: Date.now() }; // ✅ Ensures
 const rollThreshold = 300; // ✅ Time limit for double press
 const rollCooldown = 1000; // ✅ 1-second cooldown between rolls
 const keysHeld = {}; // ✅ Tracks whether a key is actively being pressed
+const throttleIncrement = 0.002;
+const deadZone = 0.1;
+const stickSensitivity = 0.5;
 let lastRollTime = 0; // ✅ Track last roll time
 
 const scene = new THREE.Scene();
@@ -696,6 +699,51 @@ function animate() {
       if (keys["ArrowDown"]) pitchGroup.rotation.x += pitchSpeed;
       if (keys["ArrowLeft"]) yawGroup.rotation.y += yawSpeed;
       if (keys["ArrowRight"]) yawGroup.rotation.y -= yawSpeed;
+      window.addEventListener("gamepadconnected", () => {
+        console.log("Gamepad connected");
+
+        requestAnimationFrame(function gamepadLoop(timestamp) {
+          const gp = navigator.getGamepads()[0];
+          if (gp) {
+            const lx = gp.axes[0];
+            const ly = gp.axes[1];
+
+            // Pitch
+            if (Math.abs(ly) > deadZone) {
+              pitchGroup.rotation.x += ly * pitchSpeed * stickSensitivity;
+            }
+
+            // Yaw
+            if (Math.abs(lx) > deadZone) {
+              yawGroup.rotation.y -= lx * yawSpeed * stickSensitivity;
+            }
+
+            // --- Camera roll based on directional input (left/right) ---
+            const targetRoll = lx < -deadZone ? 0.4 : lx > deadZone ? -0.4 : 0;
+            pitchGroup.rotation.z += (targetRoll - pitchGroup.rotation.z) * 0.1;
+
+            // Barrel roll (with cooldown)
+            if (timestamp - lastRollTime > rollCooldown) {
+              if (gp.buttons[4].pressed) {
+                barrelRoll("left");
+                lastRollTime = timestamp;
+              } else if (gp.buttons[5].pressed) {
+                barrelRoll("right");
+                lastRollTime = timestamp;
+              }
+            }
+
+            // Throttle
+            const rt = gp.buttons[7].value;
+            const lt = gp.buttons[6].value;
+
+            if (rt > 0.1) speed += rt * throttleIncrement;
+            if (lt > 0.1) speed -= lt * throttleIncrement;
+          }
+
+          requestAnimationFrame(gamepadLoop);
+        });
+      });
       document.addEventListener("keydown", (event) => {
           if (keysHeld[event.code]) return; // ✅ Ignore repeat triggers while holding
           keysHeld[event.code] = true; // ✅ Marks key as pressed
@@ -866,15 +914,18 @@ function animate() {
     }
   
     if (crashed) {
-      yawGroup.position.y = 0;
-      velocityY = 0;
-      if (performance.now() - crashTimer > 500) {
-          document.getElementById("game-over").style.display = "block";
-          setTimeout(() => {
-            document.getElementById("game-over").classList.add("show");
-          }, 50); // allows transition to kick in
-          gameOver = true;
-          speed = 0;
+      yawGroup.position.y -= 0.2;
+      if (yawGroup.position.y <= 0) {
+        yawGroup.position.y = 0;
+        velocityY = 0;
+        if (performance.now() - crashTimer > 1000) {
+            document.getElementById("game-over").style.display = "block";
+            setTimeout(() => {
+              document.getElementById("game-over").classList.add("show");
+            }, 50); // allows transition to kick in
+            gameOver = true;
+            speed = 0;
+        }
       }
     }
   
