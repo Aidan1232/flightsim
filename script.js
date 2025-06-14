@@ -866,18 +866,15 @@ function animate() {
     }
   
     if (crashed) {
-      yawGroup.position.y -= 0.2;
-      if (yawGroup.position.y <= 0) {
-        yawGroup.position.y = 0;
-        velocityY = 0;
-        if (performance.now() - crashTimer > 3000) {
-            document.getElementById("game-over").style.display = "block";
-            setTimeout(() => {
-              document.getElementById("game-over").classList.add("show");
-            }, 50); // allows transition to kick in
-            gameOver = true;
-            speed = 0;
-        }
+      yawGroup.position.y = 0;
+      velocityY = 0;
+      if (performance.now() - crashTimer > 500) {
+          document.getElementById("game-over").style.display = "block";
+          setTimeout(() => {
+            document.getElementById("game-over").classList.add("show");
+          }, 50); // allows transition to kick in
+          gameOver = true;
+          speed = 0;
       }
     }
   
