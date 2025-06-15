@@ -674,6 +674,18 @@ function updateSmoke() {
     });
 }
 
+function triggerRumble(strength = 0.5, duration = 100) {
+    const gp = navigator.getGamepads()[0];
+    if (gp && gp.vibrationActuator) {
+        gp.vibrationActuator.playEffect("dual-rumble", {
+            duration: duration,
+            strongMagnitude: strength,
+            weakMagnitude: strength * 0.5,
+            startDelay: 0
+        });
+    }
+}
+
 
 function animate() {
     if (gameOver) return;
@@ -737,13 +749,20 @@ function animate() {
             const rt = gp.buttons[7].value;
             const lt = gp.buttons[6].value;
 
-            if (rt > 0.1) speed += rt * throttleIncrement;
-            if (lt > 0.1) speed -= lt * throttleIncrement;
+            if (rt > 0.1) {
+              speed += rt * throttleIncrement;
+              triggerRumble(rt * speed * speed);
+            };
+            if (lt > 0.1) {
+              speed -= lt * throttleIncrement; 
+              triggerRumble(lt * 0.6 * speed * speed);
+            };
           }
 
           requestAnimationFrame(gamepadLoop);
         });
       });
+      
       document.addEventListener("keydown", (event) => {
           if (keysHeld[event.code]) return; // ✅ Ignore repeat triggers while holding
           keysHeld[event.code] = true; // ✅ Marks key as pressed
