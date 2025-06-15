@@ -251,6 +251,20 @@ plane.add(pilot);
 plane.rotation.y = Math.PI;
 pitchGroup.add(plane);
 
+const boxGeo = new THREE.BoxGeometry(0.1, 0.02, 0.02); // Width, height, depth
+const redMat = new THREE.MeshBasicMaterial({ color: 0xff0000, emissive: 0xff0000 });
+const greenMat = new THREE.MeshBasicMaterial({ color: 0x00ff00, emissive: 0x00ff00 });
+const redFixture = new THREE.Mesh(boxGeo, redMat);
+const greenFixture = new THREE.Mesh(boxGeo, greenMat);
+
+const leftLight = new THREE.PointLight(0xff0000, 1, 8);
+const rightLight = new THREE.PointLight(0x00ff00, 1, 8);
+
+scene.add(leftLight);
+scene.add(rightLight);
+scene.add(redFixture);
+scene.add(greenFixture);
+
 
 class AIPlane {
     constructor() {
@@ -707,26 +721,29 @@ function updateNavLights() {
 
     leftLight.position.copy(wingtipLeft);
     rightLight.position.copy(wingtipRight);
+
     redFixture.position.copy(wingtipLeft);
     greenFixture.position.copy(wingtipRight);
 }
 
-const boxGeo = new THREE.BoxGeometry(0.1, 0.02, 0.02); // Width, height, depth
-const redMat = new THREE.MeshBasicMaterial({ color: 0xff0000, emissive: 0xff0000 });
-const greenMat = new THREE.MeshBasicMaterial({ color: 0x00ff00, emissive: 0x00ff00 });
+function updateCompassUI() {
+    const dir = new THREE.Vector3();
+    plane.getWorldDirection(dir); // get world forward vector
 
-const redFixture = new THREE.Mesh(boxGeo, redMat);
-const greenFixture = new THREE.Mesh(boxGeo, greenMat);
+    // Convert to compass heading in degrees
+    const heading = Math.atan2(dir.x, dir.z) * (180 / Math.PI);
+    const normalized = (heading + 360) % 360;
 
-scene.add(redFixture);
-scene.add(greenFixture);
+    // Determine compass label
+    const cardinalLabels = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+    const labelIndex = Math.round(normalized / 45) % 8;
+    const cardinal = cardinalLabels[labelIndex];
 
+    // Update UI
+    const compassDegrees = document.getElementById("compassDegrees");
+    compassDegrees.textContent = `${normalized.toFixed(0).padStart(3, "0")}° ${cardinal}`;
+}
 
-const leftLight = new THREE.PointLight(0xff0000, 1, 8);
-const rightLight = new THREE.PointLight(0x00ff00, 1, 8);
-
-scene.add(leftLight);
-scene.add(rightLight);
 
 function animate() {
     if (gameOver) return;
@@ -1115,6 +1132,8 @@ function animate() {
     updateSmoke(); 
     updateLights();
     updateNavLights();
+    updateCompassUI();
+
 
     TWEEN.update();
 
