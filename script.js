@@ -2,6 +2,7 @@ console.clear();
 document.getElementById("hud").style.display = "none";
 document.getElementById("controls").style.display = "none";
 document.getElementById("compassUI").style.display = "none";
+
 let rain; // Declare the variable globally
 let weatherState = "clear"; // or "rain", "storm", etc.
 let weatherTimer = null;
@@ -26,10 +27,12 @@ const rollThreshold = 300; // ✅ Time limit for double press
 const rollCooldown = 1000; // ✅ 1-second cooldown between rolls
 const keysHeld = {}; // ✅ Tracks whether a key is actively being pressed
 const throttleIncrement = 0.0006;
-const deadZone = 0.40;
+const deadZone = 0.90;
 const stickSensitivity = 0.5;
-const blinkSpeed = 2; // blinks per second
+const vibeCooldown = 500; // 2 seconds
 let lastRollTime = 0; // ✅ Track last roll time
+let lastVibe = 0;
+
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
@@ -37,6 +40,17 @@ const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setClearColor(0x87ceeb, 1);
 document.body.appendChild(renderer.domElement);
+
+window.addEventListener("DOMContentLoaded", () => {
+  const toggleBtn = document.getElementById("lowPowerToggle");
+  toggleBtn.addEventListener("click", () => {
+    lowPowerMode = !lowPowerMode;
+    toggleBtn.textContent = `⚡ Low Power Mode: ${lowPowerMode ? "ON" : "OFF"}`;
+    renderer.setPixelRatio(lowPowerMode ? 0.5 : window.devicePixelRatio);
+  });
+});
+
+let lowPowerMode = false;
 
 const hudAltitude = document.getElementById("altitude");
 const hudSpeed = document.getElementById("speed");
@@ -707,6 +721,20 @@ function updateCompassUI() {
     compassDegrees.textContent = `${normalized.toFixed(0).padStart(3, "0")}° ${cardinal}`;
 }
 
+function triggerControllerAlert() {
+  const pad = navigator.getGamepads()[0];
+  if (pad?.vibrationActuator) {
+    pad.vibrationActuator.playEffect("dual-rumble", {
+      duration: 300,
+      strongMagnitude: 0.8,
+      weakMagnitude: 0.2
+    });
+  } else {
+    console.log("❌ No vibration support on this platform.");
+  }
+}
+
+
 function animate() {
     if (gameOver) return;
     requestAnimationFrame(animate);
@@ -731,8 +759,20 @@ function animate() {
       if (keys["ArrowDown"]) pitchGroup.rotation.x += pitchSpeed;
       if (keys["ArrowLeft"]) yawGroup.rotation.y += yawSpeed;
       if (keys["ArrowRight"]) yawGroup.rotation.y -= yawSpeed;
-      window.addEventListener("gamepadconnected", () => {
-        console.log("Gamepad connected");
+      window.addEventListener("gamepadconnected", (event) => {
+        console.log("Gamepad connected:", event.gamepad.id);
+
+          const gp = event.gamepad;
+          // Welcome buzz
+          if (gp.vibrationActuator) {
+            gp.vibrationActuator.playEffect("dual-rumble", {
+              duration: 300,
+              strongMagnitude: 1.0,
+              weakMagnitude: 0.5,
+            });
+          } else {
+            console.log("❌ No vibration support.");
+          }
 
         requestAnimationFrame(function gamepadLoop(timestamp) {
           const gp = navigator.getGamepads()[0];
@@ -995,6 +1035,7 @@ function animate() {
               document.getElementById("game-over").classList.add("show");
             }, 50); // allows transition to kick in
             gameOver = true;
+            document.getElementById("dangerWarning").style.display = "none";
             speed = 0;
         }
       }
@@ -1045,6 +1086,20 @@ function animate() {
 
     propeller.rotation.z += speed * 2;
 
+    //other stuff
+    const now = performance.now();
+
+    if (currentY <= 10 && now - lastVibe > vibeCooldown) {
+      triggerControllerAlert();
+      lastVibe = now;
+    }
+
+    if (currentY <= 10) {
+      document.getElementById("dangerWarning").style.display = "block";
+    } else {
+      document.getElementById("dangerWarning").style.display = "none";
+    } 
+
     if (rain) {
         const targetOpacity = weatherState === "storm" ? 0.6 :
                               weatherState === "rain" ? 0.3 : 0;
@@ -1088,12 +1143,17 @@ function animate() {
       }
     }
 
-    animateBirds();
-    updateAIPlanes();
-    cleanupAIPlanes(planePos2D);
-    updateSmoke(); 
-    updateCompassUI();
-
+    if (!lowPowerMode) {
+      animateBirds();
+      updateAIPlanes();
+      cleanupAIPlanes(planePos2D);
+      updateSmoke(); 
+      updateCompassUI();
+    } else {
+      updateSmoke(); 
+      updateCompassUI();
+      cleanupAIPlanes(planePos2D);
+    }
 
     TWEEN.update();
 
@@ -1105,10 +1165,15 @@ function startGame() {
     if (gameStarted) return;
     gameStarted = true;
     document.getElementById("start-screen").style.display = "none";
+    document.getElementById("lowPowerToggle").style.display = "none";
     document.getElementById("hud").style.display = "block";
     document.getElementById("controls").style.display = "block";
     document.getElementById("compassUI").style.display = "block";
-    initRain();
-    randomizeWeather();
-    animate();
+    if (!lowPowerMode) {
+      initRain();
+      randomizeWeather();
+      animate();
+    } else {
+      animate();
+    }
 }
