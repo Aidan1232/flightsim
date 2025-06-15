@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <title>Plane Game</title>
-  <link rel="icon" type="image/png" href="/flightsim/icon.png">
+  <link rel="icon" type="image/png" href="/icon.png">
   <style>
     body { 
       margin: 0; 
@@ -126,7 +126,7 @@
     <li>Arrow right to bank right</li>
     <li>Arrow up to pitch down</li>
     <li>Arrow down to pitch up</li>
-    <li>Or the stick to look in any direction</li>
+    <li>Or the left stick to move in any direction</li>
     <br>
     <p>Roll controls</p>
     <li>Double press left to roll left</li>
@@ -135,6 +135,24 @@
     <li>RB to roll right</li>
   </div>
   <div id="start-screen" style="position: absolute;top: 0; left: 0; right: 0; bottom: 0;background: rgba(0,0,0,0.85);color: white;font-family: sans-serif;display:flex;flex-direction: column;align-items: center;justify-content: center;font-size: 24px;z-index: 10;">
+    <h1>Controls</h1>
+    <p>Speed controls</p>
+    <li>W / LT to increase speed</li>
+    <li>S / RT to decrease speed</li>
+    <br>
+    <p>Directional controls</p>
+    <li>Arrow left to bank left</li>
+    <li>Arrow right to bank right</li>
+    <li>Arrow up to pitch down</li>
+    <li>Arrow down to pitch up</li>
+    <li>Or the left stick to move in any direction</li>
+    <br>
+    <p>Roll controls</p>
+    <li>Double press left to roll left</li>
+    <li>Double press right to roll right</li>
+    <li>LB to roll left</li>
+    <li>RB to roll right</li>
+    <br>
     <button id="startButton" onclick="startGame();">Press to start flight</button>
   </div>
   <div id="game-over" style="display: none;">
@@ -144,6 +162,6 @@
   </div>  
   <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
-  <script src="/flightsim/script.js"></script>
+  <script src="/script.js"></script>
 </body>
 </html>
