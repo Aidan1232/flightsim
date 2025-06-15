@@ -25,6 +25,7 @@ const keysHeld = {}; // ✅ Tracks whether a key is actively being pressed
 const throttleIncrement = 0.0006;
 const deadZone = 0.40;
 const stickSensitivity = 0.5;
+const blinkSpeed = 2; // blinks per second
 let lastRollTime = 0; // ✅ Track last roll time
 
 const scene = new THREE.Scene();
@@ -688,6 +689,44 @@ function triggerRumble(strength = 0.5, duration = 100) {
     }
 }
 
+function updateLights() {
+  const time = performance.now() * 0.0003;
+  const leftBlink = Math.sin(time * Math.PI * blinkSpeed) > 0;
+  const rightBlink = Math.cos(time * Math.PI * blinkSpeed) > 0;
+
+  leftLight.intensity = leftBlink ? 1 : 0;
+  rightLight.intensity = rightBlink ? 1 : 0;
+}
+
+function updateNavLights() {
+    const wingtipLeft = new THREE.Vector3(-1.6, 0.08, 0.2);
+    const wingtipRight = new THREE.Vector3(1.6, 0.08, 0.2);
+
+    plane.localToWorld(wingtipLeft);
+    plane.localToWorld(wingtipRight);
+
+    leftLight.position.copy(wingtipLeft);
+    rightLight.position.copy(wingtipRight);
+    redFixture.position.copy(wingtipLeft);
+    greenFixture.position.copy(wingtipRight);
+}
+
+const boxGeo = new THREE.BoxGeometry(0.1, 0.02, 0.02); // Width, height, depth
+const redMat = new THREE.MeshBasicMaterial({ color: 0xff0000, emissive: 0xff0000 });
+const greenMat = new THREE.MeshBasicMaterial({ color: 0x00ff00, emissive: 0x00ff00 });
+
+const redFixture = new THREE.Mesh(boxGeo, redMat);
+const greenFixture = new THREE.Mesh(boxGeo, greenMat);
+
+scene.add(redFixture);
+scene.add(greenFixture);
+
+
+const leftLight = new THREE.PointLight(0xff0000, 1, 8);
+const rightLight = new THREE.PointLight(0x00ff00, 1, 8);
+
+scene.add(leftLight);
+scene.add(rightLight);
 
 function animate() {
     if (gameOver) return;
@@ -883,6 +922,17 @@ function animate() {
           pitchGroup.rotation.z = 0;
           crashTimer = performance.now();
           spawnSparks(yawGroup.position);
+          const gp = navigator.getGamepads()[0];
+          if (gp && gp.vibrationActuator) {
+              gp.vibrationActuator.playEffect("dual-rumble", {
+                  startDelay: 0,
+                  duration: 300,         // very short burst (ms)
+                  strongMagnitude: 1.0,  // max intensity
+                  weakMagnitude: 0.5     // balance both motors
+              });
+          } else {
+              console.log("❌ No vibration support on this platform.");
+          }
           break;
         }
       }
@@ -911,6 +961,17 @@ function animate() {
               pitchGroup.rotation.z = 0;
               crashTimer = performance.now();
               spawnSparks(yawGroup.position);
+              const gp = navigator.getGamepads()[0];
+              if (gp && gp.vibrationActuator) {
+                  gp.vibrationActuator.playEffect("dual-rumble", {
+                      startDelay: 0,
+                      duration: 200,         // very short burst (ms)
+                      strongMagnitude: 1.0,  // max intensity
+                      weakMagnitude: 0.6     // balance both motors
+                  });
+              } else {
+                  console.log("❌ No vibration support on this platform.");
+              }
               break;
             }
           }
@@ -927,6 +988,17 @@ function animate() {
               pitchGroup.rotation.z = 0;
               crashTimer = performance.now();
               spawnSparks(yawGroup.position);
+              const gp = navigator.getGamepads()[0];
+              if (gp && gp.vibrationActuator) {
+                  gp.vibrationActuator.playEffect("dual-rumble", {
+                      startDelay: 0,
+                      duration: 200,         // very short burst (ms)
+                      strongMagnitude: 1.0,  // max intensity
+                      weakMagnitude: 0.6     // balance both motors
+                  });
+              } else {
+                  console.log("❌ No vibration support on this platform.");
+              }
               return;
             } 
           }
@@ -1041,6 +1113,8 @@ function animate() {
     updateAIPlanes();
     cleanupAIPlanes(planePos2D);
     updateSmoke(); 
+    updateLights();
+    updateNavLights();
 
     TWEEN.update();
 
