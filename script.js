@@ -683,6 +683,8 @@ function triggerRumble(strength = 0.5, duration = 100) {
             weakMagnitude: strength * 0.5,
             startDelay: 0
         });
+    } else {
+        console.log("❌ No vibration support on this platform.");
     }
 }
 
