@@ -1,4 +1,7 @@
 console.clear();
+document.getElementById("hud").style.display = "none";
+document.getElementById("controls").style.display = "none";
+document.getElementById("compassUI").style.display = "none";
 let rain; // Declare the variable globally
 let weatherState = "clear"; // or "rain", "storm", etc.
 let weatherTimer = null;
@@ -38,8 +41,6 @@ document.body.appendChild(renderer.domElement);
 const hudAltitude = document.getElementById("altitude");
 const hudSpeed = document.getElementById("speed");
 const hudxyz = document.getElementById("xyz")
-document.getElementById("hud").style.display = "none";
-document.getElementById("controls").style.display = "none";
 let lastPosition = new THREE.Vector3();
 
 let gameStarted = false;
@@ -1147,6 +1148,7 @@ function startGame() {
     document.getElementById("start-screen").style.display = "none";
     document.getElementById("hud").style.display = "block";
     document.getElementById("controls").style.display = "block";
+    document.getElementById("compassUI").style.display = "block";
     initRain();
     randomizeWeather();
     animate();
