@@ -755,14 +755,13 @@ function animate() {
             };
             if (lt > 0.1) {
               speed -= lt * throttleIncrement; 
-              triggerRumble(lt * 0.6 * speed * speed);
+              triggerRumble(lt * speed * speed);
             };
           }
 
           requestAnimationFrame(gamepadLoop);
         });
       });
-      
       document.addEventListener("keydown", (event) => {
           if (keysHeld[event.code]) return; // ✅ Ignore repeat triggers while holding
           keysHeld[event.code] = true; // ✅ Marks key as pressed
