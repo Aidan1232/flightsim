@@ -65,10 +65,18 @@ let velocityY = 0;
 const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
 scene.add(hemisphereLight);
 
-
-const chunkSize = 500;
-const chunkCount = 4; // 4x4 grid
+let chunkSize = 500;
+let chunkCount = 4; // 4x4 grid
 const groundChunks = [];
+
+if (!lowPowerMode) {
+  chunkSize = 500;
+  chunkCount = 4;
+} else {
+  chunkSize = 50;
+  chunkCount = 1;
+}
+
 
 for (let i = -1; i <= 1; i++) {
   for (let j = -1; j <= 1; j++) {
@@ -1153,6 +1161,8 @@ function animate() {
       updateSmoke(); 
       updateCompassUI();
       cleanupAIPlanes(planePos2D);
+      chunkSize = 200;
+      chunkCount = 3;
     }
 
     TWEEN.update();
