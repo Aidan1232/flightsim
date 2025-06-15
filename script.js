@@ -252,21 +252,6 @@ plane.add(pilot);
 plane.rotation.y = Math.PI;
 pitchGroup.add(plane);
 
-const boxGeo = new THREE.BoxGeometry(0.1, 0.02, 0.02); // Width, height, depth
-const redMat = new THREE.MeshBasicMaterial({ color: 0xff0000, emissive: 0xff0000 });
-const greenMat = new THREE.MeshBasicMaterial({ color: 0x00ff00, emissive: 0x00ff00 });
-const redFixture = new THREE.Mesh(boxGeo, redMat);
-const greenFixture = new THREE.Mesh(boxGeo, greenMat);
-
-const leftLight = new THREE.PointLight(0xff0000, 1, 8);
-const rightLight = new THREE.PointLight(0x00ff00, 1, 8);
-
-scene.add(leftLight);
-scene.add(rightLight);
-scene.add(redFixture);
-scene.add(greenFixture);
-
-
 class AIPlane {
     constructor() {
         this.mesh = new THREE.Group();
@@ -704,29 +689,6 @@ function triggerRumble(strength = 0.5, duration = 100) {
     }
 }
 
-function updateLights() {
-  const time = performance.now() * 0.0003;
-  const leftBlink = Math.sin(time * Math.PI * blinkSpeed) > 0;
-  const rightBlink = Math.cos(time * Math.PI * blinkSpeed) > 0;
-
-  leftLight.intensity = leftBlink ? 1 : 0;
-  rightLight.intensity = rightBlink ? 1 : 0;
-}
-
-function updateNavLights() {
-    const wingtipLeft = new THREE.Vector3(-1.6, 0.08, 0.2);
-    const wingtipRight = new THREE.Vector3(1.6, 0.08, 0.2);
-
-    plane.localToWorld(wingtipLeft);
-    plane.localToWorld(wingtipRight);
-
-    leftLight.position.copy(wingtipLeft);
-    rightLight.position.copy(wingtipRight);
-
-    redFixture.position.copy(wingtipLeft);
-    greenFixture.position.copy(wingtipRight);
-}
-
 function updateCompassUI() {
     const dir = new THREE.Vector3();
     plane.getWorldDirection(dir); // get world forward vector
@@ -744,7 +706,6 @@ function updateCompassUI() {
     const compassDegrees = document.getElementById("compassDegrees");
     compassDegrees.textContent = `${normalized.toFixed(0).padStart(3, "0")}° ${cardinal}`;
 }
-
 
 function animate() {
     if (gameOver) return;
@@ -1131,8 +1092,6 @@ function animate() {
     updateAIPlanes();
     cleanupAIPlanes(planePos2D);
     updateSmoke(); 
-    updateLights();
-    updateNavLights();
     updateCompassUI();
 
 
