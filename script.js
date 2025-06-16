@@ -2,6 +2,7 @@ console.clear();
 document.getElementById("hud").style.display = "none";
 document.getElementById("controls").style.display = "none";
 document.getElementById("compassUI").style.display = "none";
+document.getElementById("speedSliderContainer").style.display = "none";
 
 let rain; // Declare the variable globally
 let weatherState = "clear"; // or "rain", "storm", etc.
@@ -345,7 +346,7 @@ function getRandomChunkPosition() {
     return new THREE.Vector3(chunkX, Math.random() * 30 + 10, chunkZ);
 }
 
-const MAX_AI_PLANES = 50;
+let MAX_AI_PLANES = 50;
 
 function spawnAIPlane() {
     if (aiPlanes.length >= MAX_AI_PLANES) return;
@@ -724,9 +725,12 @@ function updateCompassUI() {
     const labelIndex = Math.round(normalized / 45) % 8;
     const cardinal = cardinalLabels[labelIndex];
 
+    // Apply proper formatting—trim leading zeroes unless above 100
+    const formattedHeading = normalized >= 100 ? normalized.toFixed(0) : normalized.toFixed(0).replace(/^0+/, '');
+
     // Update UI
     const compassDegrees = document.getElementById("compassDegrees");
-    compassDegrees.textContent = `${normalized.toFixed(0).padStart(3, "0")}° ${cardinal}`;
+    compassDegrees.textContent = `${formattedHeading}° ${cardinal}`;
 }
 
 function triggerControllerAlert() {
@@ -742,433 +746,469 @@ function triggerControllerAlert() {
   }
 }
 
+let isPaused = false;
+
+function togglePause() {
+  isPaused = !isPaused;
+  document.getElementById("pauseMenu").style.display = isPaused ? "block" : "none";
+}
+
+function resumeGame() {
+  isPaused = false;
+  document.getElementById("pauseMenu").style.display = "none";
+}
+
 
 function animate() {
     if (gameOver) return;
     requestAnimationFrame(animate);
 
-    // Smooth fog color blending
-    scene.fog.color.lerp(fogColorTarget, fogFadeSpeed);
-
-    // Smooth fog distance transitions
-    scene.fog.near += (fogNearTarget - scene.fog.near) * fogFadeSpeed;
-    scene.fog.far += (fogFarTarget - scene.fog.far) * fogFadeSpeed;
-  
-    const pitchSpeed = 0.01;
-    const yawSpeed = 0.005;
-  
-    if (keys["w"] || keys["W"]) speed += 0.002;
-    if (keys["s"] || keys["S"]) speed -= 0.002;
-    speed = Math.max(0, Math.min(speed, 0.5926));
-  
-    const controlsEnabled = speed > 0.1;
-    if (controlsEnabled && !gameOver) {
-      if (keys["ArrowUp"]) pitchGroup.rotation.x -= pitchSpeed;
-      if (keys["ArrowDown"]) pitchGroup.rotation.x += pitchSpeed;
-      if (keys["ArrowLeft"]) yawGroup.rotation.y += yawSpeed;
-      if (keys["ArrowRight"]) yawGroup.rotation.y -= yawSpeed;
-      window.addEventListener("gamepadconnected", (event) => {
-        console.log("Gamepad connected:", event.gamepad.id);
-
-          const gp = event.gamepad;
-          // Welcome buzz
-          if (gp.vibrationActuator) {
-            gp.vibrationActuator.playEffect("dual-rumble", {
-              duration: 300,
-              strongMagnitude: 1.0,
-              weakMagnitude: 0.5,
-            });
-          } else {
-            console.log("❌ No vibration support.");
-          }
-
-        requestAnimationFrame(function gamepadLoop(timestamp) {
-          const gp = navigator.getGamepads()[0];
-          if (gp) {
-            const lx = gp.axes[0];
-            const ly = gp.axes[1];
-
-            // Pitch
-            if (Math.abs(ly) > deadZone) {
-              pitchGroup.rotation.x += ly * pitchSpeed * stickSensitivity;
-            }
-
-            // Yaw
-            if (Math.abs(lx) > deadZone) {
-              yawGroup.rotation.y -= lx * yawSpeed * stickSensitivity;
-            }
-
-            // --- Camera roll based on directional input (left/right) ---
-            const targetRoll = lx < -deadZone ? 0.4 : lx > deadZone ? -0.4 : 0;
-            pitchGroup.rotation.z += (targetRoll - pitchGroup.rotation.z) * 0.1;
-
-            // Barrel roll (with cooldown)
-            if (timestamp - lastRollTime > rollCooldown) {
-              if (gp.buttons[4].pressed) {
-                barrelRoll("left");
-                lastRollTime = timestamp;
-              } else if (gp.buttons[5].pressed) {
-                barrelRoll("right");
-                lastRollTime = timestamp;
-              }
-            }
-
-            // Throttle
-            const rt = gp.buttons[7].value;
-            const lt = gp.buttons[6].value;
-
-            if (rt > 0.1) {
-              speed += rt * throttleIncrement;
-              triggerRumble(rt * speed * speed);
-            };
-            if (lt > 0.1) {
-              speed -= lt * throttleIncrement; 
-              triggerRumble(lt * speed * speed);
-            };
-          }
-
-          requestAnimationFrame(gamepadLoop);
-        });
-      });
-      document.addEventListener("keydown", (event) => {
-          if (keysHeld[event.code]) return; // ✅ Ignore repeat triggers while holding
-          keysHeld[event.code] = true; // ✅ Marks key as pressed
-
-          const now = Date.now();
-          
-          if (event.code === "ArrowLeft") {
-              if (now - lastKeyPressTime.left < rollThreshold) {
-                  keyPressCount.left++;
-              } else {
-                  keyPressCount.left = 1; // ✅ Reset count if too much time passed
-              }
-
-              lastKeyPressTime.left = now; // ✅ Store actual timestamp
-              if (keyPressCount.left === 2) {
-                  barrelRoll("left");
-                  keyPressCount.left = 0; // ✅ Reset after rolling
-              }
-          }
-
-          if (event.code === "ArrowRight") {
-              if (now - lastKeyPressTime.right < rollThreshold) {
-                  keyPressCount.right++;
-              } else {
-                  keyPressCount.right = 1; // ✅ Reset count if too much time passed
-              }
-
-              lastKeyPressTime.right = now;
-              if (keyPressCount.right === 2) {
-                  barrelRoll("right");
-                  keyPressCount.right = 0;
-              }
-          }
-      });
-
-      // ✅ Reset key state when released
-      document.addEventListener("keyup", (event) => {
-          keysHeld[event.code] = false;
-      });
-      
-    };
-
-    if (controlsEnabled && !gameOver && !rolling) {
-        const targetRoll = keys["ArrowLeft"] ? 0.4 : keys["ArrowRight"] ? -0.4 : 0;
-        pitchGroup.rotation.z += (targetRoll - pitchGroup.rotation.z) * 0.1;
-    }
-  
-    const forward = new THREE.Vector3(0, 0, -1);
-    const worldQuat = new THREE.Quaternion();
-    pitchGroup.getWorldQuaternion(worldQuat);
-    forward.applyQuaternion(worldQuat);
-    yawGroup.position.add(forward.multiplyScalar(speed));
-  
-    // Chunk grid tracking
-    const px = Math.floor(yawGroup.position.x / chunkSize);
-    const pz = Math.floor(yawGroup.position.z / chunkSize);
-  
-    let index = 0;
-    for (let i = -1; i <= 1; i++) {
-      for (let j = -1; j <= 1; j++) {
-        const chunk = groundChunks[index++];
-        const newGridX = px + i;
-        const newGridZ = pz + j;
-
-        if (chunk.userData.gridX !== newGridX || chunk.userData.gridZ !== newGridZ) {
-          chunk.userData.gridX = newGridX;
-          chunk.userData.gridZ = newGridZ;
-          chunk.position.set(newGridX * chunkSize, 0, newGridZ * chunkSize);
-
-          //rarely spawn birds (60% chance as of the comment below)
-          if (!chunk.userData.birds) chunk.userData.birds = [];
-          if (Math.random() < 0.6) { // 60% chance to spawn birds
-            const bx = chunk.position.x + Math.random() * chunkSize - chunkSize / 8;
-            const bz = chunk.position.z + Math.random() * chunkSize - chunkSize / 8;
-            const by = Math.random() * 30 + 10; // Keep them flying above ground
-
-            const bird = new Bird(bx, by, bz);
-            scene.add(bird.mesh);
-            chunk.userData.birds.push(bird);
-          }
-
-          //spawn ai planes in the sky
-          if (Math.random() < 0.3) {
-            // Spawn planes every few seconds
-            setInterval(spawnAIPlane, 5000);
-          }
-  
-          // Replant trees
-          chunk.userData.trees?.forEach(tree => {
-            tree.position.x = chunk.position.x + Math.random() * chunkSize - chunkSize / 16;
-            tree.position.z = chunk.position.z + Math.random() * chunkSize - chunkSize / 16;
-
-            tree.updateMatrixWorld(true); // Refresh transformations
-            tree.userData.boundingBox.applyMatrix4(tree.matrixWorld); // Apply new world position
-          });
-  
-          // Replant flowers
-          chunk.userData.flowers?.forEach(flower => {
-            flower.position.x = chunk.position.x + Math.random() * chunkSize - chunkSize / 16;
-            flower.position.z = chunk.position.z + Math.random() * chunkSize - chunkSize / 16;
-          });
-        }
-
-        // What happens per chunk ^^
+    window.addEventListener("keydown", (e) => {
+      if (e.code === "Escape") {
+        togglePause();
       }
-    }
+    });
 
-    // Crash checks
-    if (!crashed) {
-      planeBox.setFromObject(plane);
-      for (let i = 0; i < groundChunks.length; i++) {
-        const chunkBox = new THREE.Box3().setFromObject(groundChunks[i]);
-        if (planeBox.intersectsBox(chunkBox)) {
-          crashed = true;
-          speed = 0;
-          pitchGroup.rotation.x = 0;
-          pitchGroup.rotation.z = 0;
-          crashTimer = performance.now();
-          spawnSparks(yawGroup.position);
-          const gp = navigator.getGamepads()[0];
-          if (gp && gp.vibrationActuator) {
+    if (!isPaused) {
+      // Smooth fog color blending
+      scene.fog.color.lerp(fogColorTarget, fogFadeSpeed);
+
+      // Smooth fog distance transitions
+      scene.fog.near += (fogNearTarget - scene.fog.near) * fogFadeSpeed;
+      scene.fog.far += (fogFarTarget - scene.fog.far) * fogFadeSpeed;
+    
+      const pitchSpeed = 0.01;
+      const yawSpeed = 0.005;
+    
+      if (keys["w"] || keys["W"]) speed += 0.002;
+      if (keys["s"] || keys["S"]) speed -= 0.002;
+      speed = Math.max(0, Math.min(speed, 0.5926));
+    
+      const controlsEnabled = speed > 0.1;
+      if (controlsEnabled && !gameOver) {
+        if (keys["ArrowUp"]) pitchGroup.rotation.x -= pitchSpeed;
+        if (keys["ArrowDown"]) pitchGroup.rotation.x += pitchSpeed;
+        if (keys["ArrowLeft"]) yawGroup.rotation.y += yawSpeed;
+        if (keys["ArrowRight"]) yawGroup.rotation.y -= yawSpeed;
+        window.addEventListener("gamepadconnected", (event) => {
+          console.log("Gamepad connected:", event.gamepad.id);
+
+            const gp = event.gamepad;
+            // Welcome buzz
+            if (gp.vibrationActuator) {
               gp.vibrationActuator.playEffect("dual-rumble", {
-                  startDelay: 0,
-                  duration: 300,         // very short burst (ms)
-                  strongMagnitude: 1.0,  // max intensity
-                  weakMagnitude: 0.5     // balance both motors
+                duration: 300,
+                strongMagnitude: 1.0,
+                weakMagnitude: 0.5,
               });
-          } else {
-              console.log("❌ No vibration support on this platform.");
+            } else {
+              console.log("❌ No vibration support.");
+            }
+
+          requestAnimationFrame(function gamepadLoop(timestamp) {
+            const gp = navigator.getGamepads()[0];
+            if (gp) {
+              const lx = gp.axes[0];
+              const ly = gp.axes[1];
+
+              // Pitch
+              if (Math.abs(ly) > deadZone) {
+                pitchGroup.rotation.x += ly * pitchSpeed * stickSensitivity;
+              }
+
+              // Yaw
+              if (Math.abs(lx) > deadZone) {
+                yawGroup.rotation.y -= lx * yawSpeed * stickSensitivity;
+              }
+
+              // --- Camera roll based on directional input (left/right) ---
+              const targetRoll = lx < -deadZone ? 0.4 : lx > deadZone ? -0.4 : 0;
+              pitchGroup.rotation.z += (targetRoll - pitchGroup.rotation.z) * 0.1;
+
+              // Barrel roll (with cooldown)
+              if (timestamp - lastRollTime > rollCooldown) {
+                if (gp.buttons[4].pressed) {
+                  barrelRoll("left");
+                  lastRollTime = timestamp;
+                } else if (gp.buttons[5].pressed) {
+                  barrelRoll("right");
+                  lastRollTime = timestamp;
+                }
+              }
+
+              // Throttle
+              const rt = gp.buttons[7].value;
+              const lt = gp.buttons[6].value;
+
+              if (rt > 0.1) {
+                speed += rt * throttleIncrement;
+                triggerRumble(rt * speed * speed);
+              };
+              if (lt > 0.1) {
+                speed -= lt * throttleIncrement; 
+                triggerRumble(lt * speed * speed);
+              };
+
+              if (gp.buttons[9].pressed && !isPaused) {
+                togglePause(); // Your pause logic
+              }
+              if (gp.buttons[0].pressed && isPaused) {
+                resumeGame();
+              }
+              if (gp.buttons[1].pressed && isPaused) {
+                window.location.reload();
+              }
+            }
+            requestAnimationFrame(gamepadLoop);
+          });
+        });
+        document.addEventListener("keydown", (event) => {
+            if (keysHeld[event.code]) return; // ✅ Ignore repeat triggers while holding
+            keysHeld[event.code] = true; // ✅ Marks key as pressed
+
+            const now = Date.now();
+            
+            if (event.code === "ArrowLeft") {
+                if (now - lastKeyPressTime.left < rollThreshold) {
+                    keyPressCount.left++;
+                } else {
+                    keyPressCount.left = 1; // ✅ Reset count if too much time passed
+                }
+
+                lastKeyPressTime.left = now; // ✅ Store actual timestamp
+                if (keyPressCount.left === 2) {
+                    barrelRoll("left");
+                    keyPressCount.left = 0; // ✅ Reset after rolling
+                }
+            }
+
+            if (event.code === "ArrowRight") {
+                if (now - lastKeyPressTime.right < rollThreshold) {
+                    keyPressCount.right++;
+                } else {
+                    keyPressCount.right = 1; // ✅ Reset count if too much time passed
+                }
+
+                lastKeyPressTime.right = now;
+                if (keyPressCount.right === 2) {
+                    barrelRoll("right");
+                    keyPressCount.right = 0;
+                }
+            }
+        });
+
+        // ✅ Reset key state when released
+        document.addEventListener("keyup", (event) => {
+            keysHeld[event.code] = false;
+        });
+        
+      };
+
+      if (controlsEnabled && !gameOver && !rolling) {
+          const targetRoll = keys["ArrowLeft"] ? 0.4 : keys["ArrowRight"] ? -0.4 : 0;
+          pitchGroup.rotation.z += (targetRoll - pitchGroup.rotation.z) * 0.1;
+      }
+    
+      const forward = new THREE.Vector3(0, 0, -1);
+      const worldQuat = new THREE.Quaternion();
+      pitchGroup.getWorldQuaternion(worldQuat);
+      forward.applyQuaternion(worldQuat);
+      yawGroup.position.add(forward.multiplyScalar(speed));
+    
+      // Chunk grid tracking
+      const px = Math.floor(yawGroup.position.x / chunkSize);
+      const pz = Math.floor(yawGroup.position.z / chunkSize);
+    
+      let index = 0;
+      for (let i = -1; i <= 1; i++) {
+        for (let j = -1; j <= 1; j++) {
+          const chunk = groundChunks[index++];
+          const newGridX = px + i;
+          const newGridZ = pz + j;
+
+          if (chunk.userData.gridX !== newGridX || chunk.userData.gridZ !== newGridZ) {
+            chunk.userData.gridX = newGridX;
+            chunk.userData.gridZ = newGridZ;
+            chunk.position.set(newGridX * chunkSize, 0, newGridZ * chunkSize);
+
+            //rarely spawn birds (60% chance as of the comment below)
+            if (!chunk.userData.birds) chunk.userData.birds = [];
+            if (Math.random() < 0.6) { // 60% chance to spawn birds
+              const bx = chunk.position.x + Math.random() * chunkSize - chunkSize / 8;
+              const bz = chunk.position.z + Math.random() * chunkSize - chunkSize / 8;
+              const by = Math.random() * 30 + 10; // Keep them flying above ground
+
+              const bird = new Bird(bx, by, bz);
+              scene.add(bird.mesh);
+              chunk.userData.birds.push(bird);
+            }
+
+            //spawn ai planes in the sky
+            if (Math.random() < 0.3) {
+              // Spawn planes every few seconds
+              setInterval(spawnAIPlane, 5000);
+            }
+    
+            // Replant trees
+            chunk.userData.trees?.forEach(tree => {
+              tree.position.x = chunk.position.x + Math.random() * chunkSize - chunkSize / 16;
+              tree.position.z = chunk.position.z + Math.random() * chunkSize - chunkSize / 16;
+
+              tree.updateMatrixWorld(true); // Refresh transformations
+              tree.userData.boundingBox.applyMatrix4(tree.matrixWorld); // Apply new world position
+            });
+    
+            // Replant flowers
+            chunk.userData.flowers?.forEach(flower => {
+              flower.position.x = chunk.position.x + Math.random() * chunkSize - chunkSize / 16;
+              flower.position.z = chunk.position.z + Math.random() * chunkSize - chunkSize / 16;
+            });
           }
-          break;
+
+          // What happens per chunk ^^
         }
       }
-    }
 
-    if (!gameOver) {
-      if (speed < 0.15) {
-        yawGroup.position.y -= 0.2;
-        pitchGroup.rotation.x -= 0.005;
-      };
-      if (speed >= 50) {
-        pitchGroup.rotation.x *= 0.98;
+      // Crash checks
+      if (!crashed) {
+        planeBox.setFromObject(plane);
+        for (let i = 0; i < groundChunks.length; i++) {
+          const chunkBox = new THREE.Box3().setFromObject(groundChunks[i]);
+          if (planeBox.intersectsBox(chunkBox)) {
+            crashed = true;
+            speed = 0;
+            pitchGroup.rotation.x = 0;
+            pitchGroup.rotation.z = 0;
+            crashTimer = performance.now();
+            spawnSparks(yawGroup.position);
+            const gp = navigator.getGamepads()[0];
+            if (gp && gp.vibrationActuator) {
+                gp.vibrationActuator.playEffect("dual-rumble", {
+                    startDelay: 0,
+                    duration: 300,         // very short burst (ms)
+                    strongMagnitude: 1.0,  // max intensity
+                    weakMagnitude: 0.5     // balance both motors
+                });
+            } else {
+                console.log("❌ No vibration support on this platform.");
+            }
+            break;
+          }
+        }
       }
-    }
 
-    if (!crashed) {
-      planeBox.setFromObject(plane);
-      for (const chunk of groundChunks) {
-        for (const tree of chunk.userData.trees) {
-          const treeBox = new THREE.Box3().setFromObject(tree);
-          if (planeBox.intersectsBox(treeBox)) {
-            if (!crashed) {
-              crashed = true;
-              speed = 0;
-              pitchGroup.rotation.x = 0;
-              pitchGroup.rotation.z = 0;
-              crashTimer = performance.now();
-              spawnSparks(yawGroup.position);
-              const gp = navigator.getGamepads()[0];
-              if (gp && gp.vibrationActuator) {
-                  gp.vibrationActuator.playEffect("dual-rumble", {
-                      startDelay: 0,
-                      duration: 200,         // very short burst (ms)
-                      strongMagnitude: 1.0,  // max intensity
-                      weakMagnitude: 0.6     // balance both motors
-                  });
-              } else {
-                  console.log("❌ No vibration support on this platform.");
+      if (!gameOver) {
+        if (speed < 0.15) {
+          yawGroup.position.y -= 0.2;
+          pitchGroup.rotation.x -= 0.005;
+        };
+        if (speed >= 50) {
+          pitchGroup.rotation.x *= 0.98;
+        }
+      }
+
+      if (!crashed) {
+        planeBox.setFromObject(plane);
+        for (const chunk of groundChunks) {
+          for (const tree of chunk.userData.trees) {
+            const treeBox = new THREE.Box3().setFromObject(tree);
+            if (planeBox.intersectsBox(treeBox)) {
+              if (!crashed) {
+                crashed = true;
+                speed = 0;
+                pitchGroup.rotation.x = 0;
+                pitchGroup.rotation.z = 0;
+                crashTimer = performance.now();
+                spawnSparks(yawGroup.position);
+                const gp = navigator.getGamepads()[0];
+                if (gp && gp.vibrationActuator) {
+                    gp.vibrationActuator.playEffect("dual-rumble", {
+                        startDelay: 0,
+                        duration: 200,         // very short burst (ms)
+                        strongMagnitude: 1.0,  // max intensity
+                        weakMagnitude: 0.6     // balance both motors
+                    });
+                } else {
+                    console.log("❌ No vibration support on this platform.");
+                }
+                break;
               }
-              break;
             }
           }
         }
+        aiPlanes.forEach(plane => {
+            const aiBox = new THREE.Box3().setFromObject(plane.mesh);
+            if (planeBox.intersectsBox(aiBox)) {
+              if (!crashed) {
+                scene.remove(plane.mesh);
+                crashed = true;
+                speed = 0;
+                pitchGroup.rotation.x = 0;
+                pitchGroup.rotation.z = 0;
+                crashTimer = performance.now();
+                spawnSparks(yawGroup.position);
+                const gp = navigator.getGamepads()[0];
+                if (gp && gp.vibrationActuator) {
+                    gp.vibrationActuator.playEffect("dual-rumble", {
+                        startDelay: 0,
+                        duration: 200,         // very short burst (ms)
+                        strongMagnitude: 1.0,  // max intensity
+                        weakMagnitude: 0.6     // balance both motors
+                    });
+                } else {
+                    console.log("❌ No vibration support on this platform.");
+                }
+                return;
+              } 
+            }
+        });
       }
-      aiPlanes.forEach(plane => {
-          const aiBox = new THREE.Box3().setFromObject(plane.mesh);
-          if (planeBox.intersectsBox(aiBox)) {
-            if (!crashed) {
-              scene.remove(plane.mesh);
-              crashed = true;
+    
+      if (crashed) {
+        yawGroup.position.y -= 0.2;
+        if (yawGroup.position.y <= 0) {
+          yawGroup.position.y = 0;
+          velocityY = 0;
+          if (performance.now() - crashTimer > 1000) {
+              document.getElementById("game-over").style.display = "block";
+              setTimeout(() => {
+                document.getElementById("game-over").classList.add("show");
+                document.getElementById("dangerWarning").style.display = "none";
+              }, 50); // allows transition to kick in
+              gameOver = true;
               speed = 0;
-              pitchGroup.rotation.x = 0;
-              pitchGroup.rotation.z = 0;
-              crashTimer = performance.now();
-              spawnSparks(yawGroup.position);
-              const gp = navigator.getGamepads()[0];
-              if (gp && gp.vibrationActuator) {
-                  gp.vibrationActuator.playEffect("dual-rumble", {
-                      startDelay: 0,
-                      duration: 200,         // very short burst (ms)
-                      strongMagnitude: 1.0,  // max intensity
-                      weakMagnitude: 0.6     // balance both motors
-                  });
-              } else {
-                  console.log("❌ No vibration support on this platform.");
-              }
-              return;
-            } 
+              document.getElementById("dangerWarning").style.display = "none";
           }
+        }
+      }
+    
+      // Spark update
+      sparks.forEach((spark, i) => {
+        spark.velocity.y -= 0.01;
+        spark.position.add(spark.velocity);
+        spark.material.opacity -= 0.01;
+        if (spark.material.opacity <= 0) {
+          scene.remove(spark);
+          sparks.splice(i, 1);
+        }
       });
-    }
-  
-    if (crashed) {
-      yawGroup.position.y -= 0.2;
-      if (yawGroup.position.y <= 0) {
-        yawGroup.position.y = 0;
-        velocityY = 0;
-        if (performance.now() - crashTimer > 1000) {
-            document.getElementById("game-over").style.display = "block";
-            setTimeout(() => {
-              document.getElementById("game-over").classList.add("show");
-            }, 50); // allows transition to kick in
-            gameOver = true;
-            document.getElementById("dangerWarning").style.display = "none";
-            speed = 0;
+    
+      // Cloud recycling
+      const planePos2D = new THREE.Vector2(yawGroup.position.x, yawGroup.position.z);
+      clouds.forEach(cloud => {
+        const cloudPos2D = new THREE.Vector2(cloud.position.x, cloud.position.z);
+        const dist = planePos2D.distanceTo(cloudPos2D);
+        if (dist > cloudSpawnRadius * 1.2) {
+          const angle = Math.random() * Math.PI * 2;
+          const distance = Math.random() * cloudSpawnRadius;
+          cloud.position.x = yawGroup.position.x + Math.cos(angle) * distance;
+          cloud.position.z = yawGroup.position.z + Math.sin(angle) * distance;
+          cloud.position.y = Math.random() * 300 + 100;
         }
+      });
+    
+      // HUD + camera
+      const currentY = yawGroup.position.y;
+      hudAltitude.textContent = `Altitude: ${currentY.toFixed(1)} m`;
+      hudAltitude.style.color = currentY.toFixed(1) >= 10 ? "white" : "red";
+    
+      const currentPosition = new THREE.Vector3();
+      yawGroup.getWorldPosition(currentPosition);
+      const kmh = (speed * 60 * 60 * 3).toFixed(1);
+      hudSpeed.textContent = `Speed: ${Math.round(kmh / 10)} km/h`;
+      document.getElementById("speed").style.color = speed >= 0.14999999999999997 ? "white" : "red";
+      lastPosition.copy(currentPosition);
+    
+      const planePos = new THREE.Vector3();
+      plane.getWorldPosition(planePos);
+
+      plane.add(camera);
+      camera.position.set(0, 2, -6);
+      camera.rotation.y = Math.PI; // ✅ Rotates camera 180° to face forward
+
+      propeller.rotation.z += speed * 2;
+
+      //other stuff
+      const now = performance.now();
+
+      if (currentY <= 10 && now - lastVibe > vibeCooldown) {
+        triggerControllerAlert();
+        lastVibe = now;
       }
-    }
-  
-    // Spark update
-    sparks.forEach((spark, i) => {
-      spark.velocity.y -= 0.01;
-      spark.position.add(spark.velocity);
-      spark.material.opacity -= 0.01;
-      if (spark.material.opacity <= 0) {
-        scene.remove(spark);
-        sparks.splice(i, 1);
-      }
-    });
-  
-    // Cloud recycling
-    const planePos2D = new THREE.Vector2(yawGroup.position.x, yawGroup.position.z);
-    clouds.forEach(cloud => {
-      const cloudPos2D = new THREE.Vector2(cloud.position.x, cloud.position.z);
-      const dist = planePos2D.distanceTo(cloudPos2D);
-      if (dist > cloudSpawnRadius * 1.2) {
-        const angle = Math.random() * Math.PI * 2;
-        const distance = Math.random() * cloudSpawnRadius;
-        cloud.position.x = yawGroup.position.x + Math.cos(angle) * distance;
-        cloud.position.z = yawGroup.position.z + Math.sin(angle) * distance;
-        cloud.position.y = Math.random() * 300 + 100;
-      }
-    });
-  
-    // HUD + camera
-    const currentY = yawGroup.position.y;
-    hudAltitude.textContent = `Altitude: ${currentY.toFixed(1)} m`;
-  
-    const currentPosition = new THREE.Vector3();
-    yawGroup.getWorldPosition(currentPosition);
-    const kmh = (speed * 60 * 60 * 3).toFixed(1);
-    hudSpeed.textContent = `Speed: ${Math.round(kmh / 10)} km/h`;
-    document.getElementById("speed").style.color = speed > 4600 ? "red" : "white";
-    lastPosition.copy(currentPosition);
-  
-    const planePos = new THREE.Vector3();
-    plane.getWorldPosition(planePos);
 
-    plane.add(camera);
-    camera.position.set(0, 2, -6);
-    camera.rotation.y = Math.PI; // ✅ Rotates camera 180° to face forward
+      if (currentY <= 10) {
+        document.getElementById("dangerWarning").style.display = "block";
+      } else {
+        document.getElementById("dangerWarning").style.display = "none";
+      } 
 
-    propeller.rotation.z += speed * 2;
+      if (rain) {
+          const targetOpacity = weatherState === "storm" ? 0.6 :
+                                weatherState === "rain" ? 0.3 : 0;
+          rain.material.opacity += (targetOpacity - rain.material.opacity) * 0.05;
+          rain.visible = rain.material.opacity > 0.01;
+        
+          if (rain && rain.visible) {
+            // Update position to follow plane
+            const planePos = new THREE.Vector3();
+            yawGroup.getWorldPosition(planePos);
+            rain.position.set(
+              planePos.x, 
+              planePos.y, 
+              planePos.z - 50
+            );
+            rain.rotation.set(
+              0.2 * pitchGroup.rotation.x,
+              yawGroup.rotation.y,
+              pitchGroup.rotation.z * 0.5
+            );
 
-    //other stuff
-    const now = performance.now();
-
-    if (currentY <= 10 && now - lastVibe > vibeCooldown) {
-      triggerControllerAlert();
-      lastVibe = now;
-    }
-
-    if (currentY <= 10) {
-      document.getElementById("dangerWarning").style.display = "block";
-    } else {
-      document.getElementById("dangerWarning").style.display = "none";
-    } 
-
-    if (rain) {
-        const targetOpacity = weatherState === "storm" ? 0.6 :
-                              weatherState === "rain" ? 0.3 : 0;
-        rain.material.opacity += (targetOpacity - rain.material.opacity) * 0.05;
-        rain.visible = rain.material.opacity > 0.01;
-      
-        if (rain && rain.visible) {
-          // Update position to follow plane
-          const planePos = new THREE.Vector3();
-          yawGroup.getWorldPosition(planePos);
-          rain.position.set(
-            planePos.x, 
-            planePos.y, 
-            planePos.z - 50
-          );
-          rain.rotation.set(
-            0.2 * pitchGroup.rotation.x,
-            yawGroup.rotation.y,
-            pitchGroup.rotation.z * 0.5
-          );
-
-          const pos = rain.geometry.attributes.position;
-          for (let i = 0; i < pos.count; i++) {
-            pos.array[i * 3 + 1] -= 4;
-            if (pos.array[i * 3 + 1] < 0) pos.array[i * 3 + 1] = 500;
+            const pos = rain.geometry.attributes.position;
+            for (let i = 0; i < pos.count; i++) {
+              pos.array[i * 3 + 1] -= 4;
+              if (pos.array[i * 3 + 1] < 0) pos.array[i * 3 + 1] = 500;
+            }
+            pos.needsUpdate = true;
           }
-          pos.needsUpdate = true;
-        }
-    }
-
-    for (const chunk of groundChunks) {
-      if (!chunk.userData.birds) continue; // Skip chunks without birds
-      for (const bird of chunk.userData.birds) {
-        planeBox.setFromObject(plane);
-        const birdBox = new THREE.Box3().setFromObject(bird.mesh);
-        if (planeBox.intersectsBox(birdBox)) {
-          createFeatherExplosion(bird.mesh.position); // 💥 POOF effect!
-          scene.remove(bird.mesh); // Bird disappears after impact
-        }
-        bird.update(chunk.userData.birds, yawGroup); // Birds flock + react
       }
+
+      for (const chunk of groundChunks) {
+        if (!chunk.userData.birds) continue; // Skip chunks without birds
+        for (const bird of chunk.userData.birds) {
+          planeBox.setFromObject(plane);
+          const birdBox = new THREE.Box3().setFromObject(bird.mesh);
+          if (planeBox.intersectsBox(birdBox)) {
+            createFeatherExplosion(bird.mesh.position); // 💥 POOF effect!
+            scene.remove(bird.mesh); // Bird disappears after impact
+          }
+          bird.update(chunk.userData.birds, yawGroup); // Birds flock + react
+        }
+      }
+
+      if (!lowPowerMode) {
+        animateBirds();
+        updateAIPlanes();
+        cleanupAIPlanes(planePos2D);
+        updateSmoke(); 
+        updateCompassUI();
+        MAX_AI_PLANES = 50
+        chunkCount = 4;
+        chunkSize = 500;
+      } else {
+        updateSmoke(); 
+        updateCompassUI();
+        cleanupAIPlanes(planePos2D);
+        chunkSize = 200;
+        chunkCount = 3;
+        MAX_AI_PLANES = 0;
+      }
+
+
+      TWEEN.update();
+
+      hudxyz.textContent = `X: ${Math.round(planePos.x)} Y: ${Math.round(planePos.y)} Z: ${Math.round(planePos.z)}`;     
+      renderer.render(scene, camera);
     }
-
-    if (!lowPowerMode) {
-      animateBirds();
-      updateAIPlanes();
-      cleanupAIPlanes(planePos2D);
-      updateSmoke(); 
-      updateCompassUI();
-    } else {
-      updateSmoke(); 
-      updateCompassUI();
-      cleanupAIPlanes(planePos2D);
-      chunkSize = 200;
-      chunkCount = 3;
-    }
-
-    TWEEN.update();
-
-    hudxyz.textContent = `X: ${Math.round(planePos.x)} Y: ${Math.round(planePos.y)} Z: ${Math.round(planePos.z)}`;     
-    renderer.render(scene, camera);
 }
   
 function startGame() {
