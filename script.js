@@ -2,22 +2,29 @@ console.clear();
 document.getElementById("hud").style.display = "none";
 document.getElementById("controls").style.display = "none";
 document.getElementById("compassUI").style.display = "none";
-document.getElementById("speedSliderContainer").style.display = "none";
 
 let rain; // Declare the variable globally
 let weatherState = "clear"; // or "rain", "storm", etc.
 let weatherTimer = null;
 const weatherOptions = [
     "clear", "clear", "clear",
-    "rain", "storm"
+    "rain", 
+    "storm"
 ];
 
 let fogColorTarget = new THREE.Color();
 let fogFadeSpeed = 0.02;
 let fogNearTarget = 100;
-let fogFarTarget = 800;
+let fogFarTarget = 2000;
 
 let rainOpacityTarget = 0;
+
+let lastLightningTime = 0;
+const lightningCooldown = 1000; // 1s cooldown
+const MAX_LIGHTNING_BOLTS = 3; // Restrict how many bolts exist at a time
+const lightningBolts = []; // Store all active bolts
+
+let lightningEnabled = false; // Default: Lightning is ON
 
 const allTrees = [];
 
@@ -49,6 +56,16 @@ window.addEventListener("DOMContentLoaded", () => {
     toggleBtn.textContent = `⚡ Low Power Mode: ${lowPowerMode ? "ON" : "OFF"}`;
     renderer.setPixelRatio(lowPowerMode ? 0.5 : window.devicePixelRatio);
   });
+});
+
+document.getElementById("toggleLightning").addEventListener("click", () => {
+  lightningEnabled = !lightningEnabled;
+  document.getElementById("toggleLightning").textContent = ("⚡ Lightning is now:", lightningEnabled ? "Toggle Lightning: ON" : "Toggle Lightning: OFF");
+  if (lightningEnabled) {
+    document.getElementById("lightningWarning").style.display = "block";
+  } else {
+    document.getElementById("lightningWarning").style.display = "none";
+  }
 });
 
 let lowPowerMode = false;
@@ -136,6 +153,14 @@ for (let i = 0; i < 150; i++) {
   const z = Math.random() * 2000 - 1000;
   cloudGroup.add(create3DCloud(x, y, z));
 }
+
+function getRandomCloudPosition() {
+  if (cloudGroup.children.length === 0) return { x: 0, y: 200, z: -500 }; // Fallback
+
+  const cloud = cloudGroup.children[Math.floor(Math.random() * cloudGroup.children.length)];
+  return cloud.position; // Use real cloud positions
+}
+
 
 function createTree(x, y, z) {
     const tree = new THREE.Group();
@@ -434,6 +459,95 @@ function showHudMessage(text) {
     hudMessage.style.display = "block";
 }
 
+const lightning = new THREE.PointLight(0xffffff, 5, 500);
+lightning.position.set(0, 300, -500); // Place it in the storm clouds
+scene.add(lightning);
+
+// Initially keep it off
+lightning.visible = false;
+
+function createLightningBolt(startX, startY, startZ) {
+  const boltMaterial = new THREE.LineBasicMaterial({ color: 0xffffff });
+  const boltGeometry = new THREE.BufferGeometry();
+
+  // Generate random lightning shape
+  const positions = [];
+  let currentX = startX, currentY = startY, currentZ = startZ;
+
+  for (let i = 0; i < 5; i++) {
+    positions.push(currentX, currentY, currentZ);
+    currentX += (Math.random() - 0.5) * 10; // Slight zig-zag
+    currentY -= Math.random() * 99; // Moves downward
+    currentZ += (Math.random() - 0.5) * 5;
+  }
+
+  boltGeometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+
+  const bolt = new THREE.Line(boltGeometry, boltMaterial);
+  scene.add(bolt);
+
+  return bolt;
+}
+
+function groundStrikeEffect(x, z) {
+  const flash = new THREE.PointLight(0xffffff, 3, 200);
+  flash.position.set(x, 10, z); // Position at ground level
+  scene.add(flash);
+
+  setTimeout(() => scene.remove(flash), 300);
+}
+
+function triggerLightning() {
+  if (!lightningEnabled) return; // 🚫 Stop lightning if disabled
+  if (weatherState === "storm") {
+    const now = Date.now();
+    if (now - lastLightningTime < lightningCooldown) return; // If not cooled down, do nothing
+    lastLightningTime = now; // Update last strike time
+    if (lightningBolts.length >= MAX_LIGHTNING_BOLTS) return; // Prevent overloading
+    
+
+    const cloudPos = getRandomCloudPosition(); // Pick a real cloud
+    const bolt = createLightningBolt(cloudPos.x, cloudPos.y, cloudPos.z);
+
+    lightningBolts.push(bolt); // Store the new bolt
+
+    lightning.position.set(cloudPos.x, cloudPos.y, cloudPos.z);
+    lightning.visible = true;
+
+    if (bolt.geometry.attributes.position.array[bolt.geometry.attributes.position.count * 3 - 2] < 10) {
+      groundStrikeEffect(bolt.position.x, bolt.position.z);
+    }    
+
+    const gp = navigator.getGamepads()[0];
+    if (gp && gp.vibrationActuator) {
+        gp.vibrationActuator.playEffect("dual-rumble", {
+            startDelay: 0,
+            duration: 200,         // very short burst (ms)
+            strongMagnitude: 1.0,  // max intensity
+            weakMagnitude: 0.6     // balance both motors
+        });
+    } else {
+        console.log("❌ No vibration support on this platform.");
+    }
+
+    setTimeout(() => {
+      lightning.visible = false;
+      if (scene.children.includes(bolt)) {
+        scene.remove(bolt); // ✅ Ensure it's still in the scene before removing
+      }
+      lightningBolts = lightningBolts.filter(b => b !== bolt); // ✅ Remove from tracking list
+    }, 200); // Flash lasts 200ms
+  }
+}
+
+function updateWeatherEffects() {
+  setInterval(() => {
+    if (weatherState === "storm") {
+      triggerLightning();
+    }
+  }, 2000);
+  requestAnimationFrame(updateWeatherEffects);
+}
 
 function randomizeWeather() {
     // Pick a new, different state
@@ -1062,6 +1176,34 @@ function animate() {
               } 
             }
         });
+
+        lightningBolts.forEach(bolt => {
+          const planeBox = new THREE.Box3().setFromObject(plane);
+          const boltBox = new THREE.Box3().setFromObject(bolt);
+          if (boltBox.intersectsBox(planeBox)) {
+            spawnSparks(yawGroup.position);
+            if (!crashed) {
+              crashed = true;
+              speed = 0;
+              pitchGroup.rotation.x = 0;
+              pitchGroup.rotation.z = 0;
+              crashTimer = performance.now();
+              spawnSparks(yawGroup.position);
+              const gp = navigator.getGamepads()[0];
+              if (gp && gp.vibrationActuator) {
+                  gp.vibrationActuator.playEffect("dual-rumble", {
+                      startDelay: 0,
+                      duration: 200,         // very short burst (ms)
+                      strongMagnitude: 1.0,  // max intensity
+                      weakMagnitude: 0.6     // balance both motors
+                  });
+              } else {
+                  console.log("❌ No vibration support on this platform.");
+              }
+              return;
+            } 
+          };   
+        });
       }
     
       if (crashed) {
@@ -1106,6 +1248,11 @@ function animate() {
           cloud.position.y = Math.random() * 300 + 100;
         }
       });
+      if (!lowPowerMode) {
+        cloudGroup.children = cloudGroup.children.slice(0, 150);
+      } else {
+        cloudGroup.children = cloudGroup.children.slice(0, 50);
+      }
     
       // HUD + camera
       const currentY = yawGroup.position.y;
@@ -1191,6 +1338,7 @@ function animate() {
         cleanupAIPlanes(planePos2D);
         updateSmoke(); 
         updateCompassUI();
+        updateWeatherEffects();
         MAX_AI_PLANES = 50
         chunkCount = 4;
         chunkSize = 500;
@@ -1202,7 +1350,6 @@ function animate() {
         chunkCount = 3;
         MAX_AI_PLANES = 0;
       }
-
 
       TWEEN.update();
 
@@ -1216,6 +1363,8 @@ function startGame() {
     gameStarted = true;
     document.getElementById("start-screen").style.display = "none";
     document.getElementById("lowPowerToggle").style.display = "none";
+    document.getElementById("toggleLightning").style.display = "none";
+    document.getElementById("lightningWarning").style.display = "none";
     document.getElementById("hud").style.display = "block";
     document.getElementById("controls").style.display = "block";
     document.getElementById("compassUI").style.display = "block";
